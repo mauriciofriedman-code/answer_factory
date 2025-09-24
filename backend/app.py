@@ -1,10 +1,12 @@
 from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict
 import openai
 import os
 from dotenv import load_dotenv
+import json
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -18,7 +20,7 @@ app = FastAPI(
 # CORS middleware - Allow all origins for Render deployment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins since both frontend and backend are on Render
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,7 +29,13 @@ app.add_middleware(
 # Set OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Pydantic models for request/response
+# In-memory storage for RAG content with metadata
+rag_storage = {
+    "chunks": [],
+    "metadata": []
+}
+
+# Pydantic models
 class GenerateRequest(BaseModel):
     prompt: str
     temperature: float = 0.7
@@ -36,7 +44,7 @@ class GenerateRequest(BaseModel):
     frequency_penalty: float = 0.0
     presence_penalty: float = 0.0
     max_tokens: int = 500
-    style: str = "neutral"
+    style: str = "natural"
     use_rag: bool = False
     stop_sequences: List[str] = []
 
@@ -44,9 +52,16 @@ class TextUploadRequest(BaseModel):
     text: str
     chunk_size: int = 500
     chunk_overlap: int = 50
+    # Metadata fields for plain text
+    title: Optional[str] = "Documento sin título"
+    author: Optional[str] = "Autor desconocido"
+    source: Optional[str] = "Texto plano"
 
 class URLUploadRequest(BaseModel):
     url: str
+    # These will be auto-extracted when possible
+    title: Optional[str] = None
+    author: Optional[str] = None
 
 @app.get("/")
 def root():
@@ -57,7 +72,8 @@ def health_check():
     return {
         "status": "healthy",
         "message": "API funcionando correctamente",
-        "openai_configured": bool(os.getenv("OPENAI_API_KEY"))
+        "openai_configured": bool(os.getenv("OPENAI_API_KEY")),
+        "rag_chunks": len(rag_storage["chunks"])
     }
 
 @app.post("/api/generate")
@@ -66,7 +82,7 @@ async def generate_response(request: GenerateRequest):
     try:
         # Style prompts for different personas
         style_prompts = {
-            "neutral": "Respond in a clear, neutral manner.",
+            "natural": None,  # No system message - pure model response
             "scientific": "Responde de manera científica y técnica, usando terminología precisa y explicando los conceptos con rigor académico.",
             "friendly_teacher": "Responde como un profesor amigable y alentador que quiere ayudar al estudiante a entender.",
             "child_5yo": "Responde como si fueras un niño de 5 años, usando lenguaje muy simple y comparaciones infantiles.",
@@ -81,23 +97,62 @@ async def generate_response(request: GenerateRequest):
             "chef": "Responde como un chef, usando metáforas culinarias para explicar todo como si fuera una receta."
         }
         
-        # Get the style prompt or use neutral as default
-        system_message = style_prompts.get(request.style, style_prompts["neutral"])
+        # Get the style prompt
+        system_message = style_prompts.get(request.style, None)
         
         # If OpenAI key is not configured, return a test response
         if not openai.api_key:
             return {
-                "response": f"[Modo de Prueba - OpenAI no configurado]\n\nEstilo: {request.style}\nPregunta: {request.prompt}\nTemperatura: {request.temperature}\nMax Tokens: {request.max_tokens}\n\n(Configure OPENAI_API_KEY para respuestas reales)",
-                "chunks_used": 0
+                "response": f"[Modo de Prueba - OpenAI no configurado]\n\nEstilo: {request.style}\nPregunta: {request.prompt}\n\n(Configure OPENAI_API_KEY para respuestas reales)",
+                "chunks_used": 0,
+                "sources": []
             }
+        
+        # Prepare context if RAG is enabled
+        context_text = ""
+        sources_used = []
+        
+        if request.use_rag and rag_storage["chunks"]:
+            # Simple relevance: use all chunks for now
+            # In production, you'd use embeddings and similarity search
+            context_chunks = rag_storage["chunks"][:5]  # Use top 5 chunks
+            context_metadata = rag_storage["metadata"][:5]
+            
+            context_text = "\n\n".join([
+                f"[Fuente: {meta.get('title', 'Sin título')} - {meta.get('author', 'Autor desconocido')} - Página {meta.get('page', 'N/A')}]\n{chunk}"
+                for chunk, meta in zip(context_chunks, context_metadata)
+            ])
+            
+            sources_used = [
+                {
+                    "title": meta.get("title", "Sin título"),
+                    "author": meta.get("author", "Autor desconocido"),
+                    "page": meta.get("page", "N/A"),
+                    "type": meta.get("type", "unknown")
+                }
+                for meta in context_metadata
+            ]
+            
+            # Add context to the prompt
+            augmented_prompt = f"""Contexto proporcionado:
+{context_text}
+
+Pregunta del usuario: {request.prompt}
+
+Por favor, responde basándote en el contexto proporcionado y cita las fuentes cuando sea relevante."""
+        else:
+            augmented_prompt = request.prompt
+        
+        # Build messages for OpenAI
+        messages = []
+        if system_message:  # Only add system message if style is not "natural"
+            messages.append({"role": "system", "content": system_message})
+        messages.append({"role": "user", "content": augmented_prompt})
         
         # Create the OpenAI chat completion
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": request.prompt}
-            ],
+            messages=messages,
             temperature=request.temperature,
             top_p=request.top_p,
             frequency_penalty=request.frequency_penalty,
@@ -109,117 +164,158 @@ async def generate_response(request: GenerateRequest):
         # Extract the response text
         ai_response = response.choices[0].message.content
         
-        # If RAG is enabled (future implementation)
-        chunks_used = 0
-        if request.use_rag:
-            # TODO: Implement RAG functionality with ChromaDB
-            # For now, just indicate RAG was requested
-            ai_response = f"[RAG Activado - En desarrollo]\n\n{ai_response}"
-            chunks_used = 3  # Placeholder
-        
         return {
             "response": ai_response,
-            "chunks_used": chunks_used
+            "chunks_used": len(sources_used),
+            "sources": sources_used
         }
     
-    except openai.error.AuthenticationError:
-        return {
-            "response": "Error: Clave API de OpenAI inválida. Por favor, verifica la configuración.",
-            "chunks_used": 0
-        }
-    except openai.error.RateLimitError:
-        return {
-            "response": "Error: Límite de uso de API excedido. Intenta más tarde.",
-            "chunks_used": 0
-        }
     except Exception as e:
         print(f"Error in generate_response: {str(e)}")
         return {
             "response": f"Error al generar respuesta: {str(e)}",
-            "chunks_used": 0
+            "chunks_used": 0,
+            "sources": []
         }
 
 @app.post("/api/upload-text")
 async def upload_text(request: TextUploadRequest):
-    """Upload plain text for RAG embeddings"""
+    """Upload plain text for RAG embeddings with metadata"""
     try:
-        # TODO: Implement actual text processing and ChromaDB storage
-        # For now, return success with simulated chunk count
+        # Split text into chunks
         text_length = len(request.text)
-        estimated_chunks = max(1, text_length // request.chunk_size)
+        chunk_size = request.chunk_size
+        chunk_overlap = request.chunk_overlap
+        
+        chunks = []
+        for i in range(0, text_length, chunk_size - chunk_overlap):
+            chunk = request.text[i:i + chunk_size]
+            chunks.append(chunk)
+            
+            # Add metadata for each chunk
+            rag_storage["chunks"].append(chunk)
+            rag_storage["metadata"].append({
+                "type": "text",
+                "title": request.title,
+                "author": request.author,
+                "source": request.source,
+                "page": f"{i // chunk_size + 1}",  # Approximate page number
+                "upload_time": datetime.now().isoformat()
+            })
         
         return {
             "status": "success",
-            "message": "Texto recibido correctamente",
-            "chunks_created": estimated_chunks
+            "message": f"Texto '{request.title}' procesado correctamente",
+            "chunks_created": len(chunks),
+            "metadata": {
+                "title": request.title,
+                "author": request.author
+            }
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/upload-url")
 async def upload_url(request: URLUploadRequest):
-    """Extract and store content from URL"""
+    """Extract and store content from URL with metadata"""
     try:
         # TODO: Implement actual URL fetching with beautifulsoup4
-        # For now, return success with simulated data
+        # For now, simulate with metadata
+        
+        # Simulated extraction (in production, use BeautifulSoup)
+        simulated_title = request.title or f"Contenido de {request.url}"
+        simulated_author = request.author or "Extraído de web"
+        simulated_content = f"[Contenido simulado de {request.url}]"
+        
+        # Create chunks
+        chunks = [simulated_content]  # In production, properly chunk the content
+        
+        for i, chunk in enumerate(chunks):
+            rag_storage["chunks"].append(chunk)
+            rag_storage["metadata"].append({
+                "type": "url",
+                "title": simulated_title,
+                "author": simulated_author,
+                "source": request.url,
+                "page": "Web",
+                "upload_time": datetime.now().isoformat()
+            })
+        
         return {
             "status": "success",
             "message": f"URL procesada: {request.url}",
-            "chunks_created": 5
+            "chunks_created": len(chunks),
+            "metadata": {
+                "title": simulated_title,
+                "author": simulated_author,
+                "url": request.url
+            }
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)):
-    """Process PDF for RAG"""
+    """Process PDF for RAG with metadata extraction"""
     try:
         # TODO: Implement actual PDF processing with pdfminer.six
-        # For now, return success with simulated data
-        file_size = 0
+        # For now, simulate metadata extraction
+        
         contents = await file.read()
         file_size = len(contents)
         
-        # Estimate chunks based on file size (rough estimate)
+        # Simulated metadata (in production, extract from PDF)
+        pdf_title = file.filename.replace('.pdf', '')
+        pdf_author = "Autor del PDF"  # Extract from PDF metadata
+        
+        # Simulate chunks with page numbers
         estimated_chunks = max(1, file_size // 5000)
+        
+        for i in range(estimated_chunks):
+            rag_storage["chunks"].append(f"[Contenido del PDF {file.filename} - Chunk {i+1}]")
+            rag_storage["metadata"].append({
+                "type": "pdf",
+                "title": pdf_title,
+                "author": pdf_author,
+                "source": file.filename,
+                "page": str(i + 1),  # Actual page number in production
+                "upload_time": datetime.now().isoformat()
+            })
         
         return {
             "status": "success",
             "message": f"PDF procesado: {file.filename}",
             "chunks_created": estimated_chunks,
-            "file_size": file_size
+            "metadata": {
+                "title": pdf_title,
+                "author": pdf_author,
+                "pages": estimated_chunks
+            }
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Additional endpoint for testing OpenAI connection
-@app.get("/api/test-openai")
-async def test_openai():
-    """Test if OpenAI API is properly configured"""
-    try:
-        if not openai.api_key:
-            return {
-                "configured": False,
-                "message": "OpenAI API key not configured"
+@app.delete("/api/clear-rag")
+async def clear_rag():
+    """Clear all RAG storage"""
+    rag_storage["chunks"] = []
+    rag_storage["metadata"] = []
+    return {"status": "success", "message": "RAG storage cleared"}
+
+@app.get("/api/rag-status")
+async def rag_status():
+    """Get current RAG storage status"""
+    return {
+        "total_chunks": len(rag_storage["chunks"]),
+        "sources": [
+            {
+                "title": meta.get("title"),
+                "author": meta.get("author"),
+                "type": meta.get("type")
             }
-        
-        # Try a simple completion to test the API
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": "Di 'hola' en una palabra"}],
-            max_tokens=10
-        )
-        
-        return {
-            "configured": True,
-            "message": "OpenAI API configurada correctamente",
-            "test_response": response.choices[0].message.content
-        }
-    except Exception as e:
-        return {
-            "configured": False,
-            "message": f"Error al conectar con OpenAI: {str(e)}"
-        }
+            for meta in rag_storage["metadata"]
+        ][:10]  # Show first 10 sources
+    }
 
 if __name__ == "__main__":
     import uvicorn

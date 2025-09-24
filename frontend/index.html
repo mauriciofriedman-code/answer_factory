@@ -465,6 +465,27 @@
             color: #999;
         }
 
+        .sources-list {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .source-item {
+            margin-bottom: 5px;
+            padding-left: 15px;
+            position: relative;
+        }
+
+        .source-item::before {
+            content: '📄';
+            position: absolute;
+            left: 0;
+        }
+
         @media (max-width: 768px) {
             .main-grid {
                 grid-template-columns: 1fr;
@@ -483,9 +504,9 @@
         const { useState, useEffect } = React;
 
         // This will be updated with your actual Render backend URL
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:8000'
-    : 'https://answer-factory-backend.onrender.com';  // UPDATE THIS after deployment
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:8000'
+            : 'https://answer-factory-backend.onrender.com';  // Your deployed backend URL
     
         function App() {
             const [prompt, setPrompt] = useState('');
@@ -493,6 +514,7 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
             const [loading, setLoading] = useState(false);
             const [useRag, setUseRag] = useState(false);
             const [chunksUsed, setChunksUsed] = useState(0);
+            const [sources, setSources] = useState([]);
             const [robotMood, setRobotMood] = useState('normal');
             
             const [parameters, setParameters] = useState({
@@ -502,7 +524,7 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
                 frequency_penalty: 0.0,
                 presence_penalty: 0.0,
                 max_tokens: 500,
-                style: 'neutral'
+                style: 'natural'
             });
 
             const [uploadStatus, setUploadStatus] = useState({
@@ -513,9 +535,14 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
 
             const [stopSequences, setStopSequences] = useState('');
             const [textUpload, setTextUpload] = useState('');
+            const [textMetadata, setTextMetadata] = useState({
+                title: '',
+                author: ''
+            });
             const [urlUpload, setUrlUpload] = useState('');
 
             const styleOptions = [
+                { value: 'natural', label: '🎯 Natural (Sin Ingeniería)' },
                 { value: 'scientific', label: '🔬 Científico' },
                 { value: 'friendly_teacher', label: '👨‍🏫 Profesor Amigable' },
                 { value: 'child_5yo', label: '👶 Niño de 5 años' },
@@ -554,6 +581,7 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
                 setLoading(true);
                 setResponse('');
                 setChunksUsed(0);
+                setSources([]);
                 setRobotMood('happy');
 
                 try {
@@ -590,6 +618,7 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
                     const data = await res.json();
                     setResponse(data.response || 'No se generó respuesta');
                     setChunksUsed(data.chunks_used || 0);
+                    setSources(data.sources || []);
                     
                     setTimeout(() => setRobotMood('normal'), 2000);
                 } catch (error) {
@@ -616,7 +645,9 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
                         body: JSON.stringify({
                             text: textUpload,
                             chunk_size: 500,
-                            chunk_overlap: 50
+                            chunk_overlap: 50,
+                            title: textMetadata.title || 'Documento sin título',
+                            author: textMetadata.author || 'Autor desconocido'
                         })
                     });
 
@@ -627,9 +658,10 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
                     const data = await res.json();
                     setUploadStatus(prev => ({
                         ...prev,
-                        text: `✓ Subido (${data.chunks_created || 0} fragmentos)`
+                        text: `✓ "${data.metadata?.title}" por ${data.metadata?.author} (${data.chunks_created} fragmentos)`
                     }));
                     setTextUpload('');
+                    setTextMetadata({ title: '', author: '' });
                 } catch (error) {
                     console.error('Error:', error);
                     alert('Error al subir el texto');
@@ -909,9 +941,23 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
                         <div className="upload-section">
                             <div className="upload-box">
                                 <div className="upload-title">📝 Subir Texto</div>
+                                <input
+                                    className="upload-input"
+                                    value={textMetadata.title}
+                                    onChange={(e) => setTextMetadata(prev => ({...prev, title: e.target.value}))}
+                                    placeholder="Título del documento..."
+                                    style={{ marginBottom: '5px' }}
+                                />
+                                <input
+                                    className="upload-input"
+                                    value={textMetadata.author}
+                                    onChange={(e) => setTextMetadata(prev => ({...prev, author: e.target.value}))}
+                                    placeholder="Autor..."
+                                    style={{ marginBottom: '5px' }}
+                                />
                                 <textarea
                                     className="upload-input"
-                                    style={{ minHeight: '80px', resize: 'vertical' }}
+                                    style={{ minHeight: '60px', resize: 'vertical' }}
                                     value={textUpload}
                                     onChange={(e) => setTextUpload(e.target.value)}
                                     placeholder="Pega el contenido de texto aquí..."
@@ -976,6 +1022,16 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
                                 <div className={`rag-indicator ${useRag ? '' : 'disabled'}`}>
                                     {useRag ? `RAG Activado - ${chunksUsed} fragmentos usados` : 'RAG Desactivado'}
                                 </div>
+                                {sources.length > 0 && (
+                                    <div className="sources-list">
+                                        <strong>Fuentes utilizadas:</strong>
+                                        {sources.map((source, idx) => (
+                                            <div key={idx} className="source-item">
+                                                {source.title} - {source.author} - Página {source.page}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </>
                         )}
                         <div className="response-display">

@@ -516,6 +516,7 @@
             const [chunksUsed, setChunksUsed] = useState(0);
             const [sources, setSources] = useState([]);
             const [robotMood, setRobotMood] = useState('normal');
+            const [ragStatus, setRagStatus] = useState({ total_chunks: 0, sources: [] });
             
             const [parameters, setParameters] = useState({
                 temperature: 0.7,
@@ -564,6 +565,23 @@
                 presence_penalty: "Fomenta nuevos temas: valores positivos incentivan hablar de cosas nuevas",
                 max_tokens: "Límite de longitud de la respuesta en tokens (≈ palabras)"
             };
+
+            // Check RAG status on component mount and after uploads
+            const checkRagStatus = async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/rag-status`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setRagStatus(data);
+                    }
+                } catch (error) {
+                    console.error('Error checking RAG status:', error);
+                }
+            };
+
+            useEffect(() => {
+                checkRagStatus();
+            }, []);
 
             const updateParameter = (param, value) => {
                 setParameters(prev => ({
@@ -662,6 +680,7 @@
                     }));
                     setTextUpload('');
                     setTextMetadata({ title: '', author: '' });
+                    checkRagStatus(); // Update status after upload
                 } catch (error) {
                     console.error('Error:', error);
                     alert('Error al subir el texto');
@@ -695,6 +714,7 @@
                         url: `✓ Obtenido (${data.chunks_created || 0} fragmentos)`
                     }));
                     setUrlUpload('');
+                    checkRagStatus(); // Update status after upload
                 } catch (error) {
                     console.error('Error:', error);
                     alert('Error al obtener el contenido de la URL');
@@ -723,6 +743,7 @@
                         ...prev,
                         pdf: `✓ ${file.name} (${data.chunks_created || 0} fragmentos)`
                     }));
+                    checkRagStatus(); // Update status after upload
                 } catch (error) {
                     console.error('Error:', error);
                     alert('Error al subir el PDF');
@@ -937,7 +958,49 @@
                     </div>
 
                     <div className="card" style={{ marginBottom: '20px' }}>
-                        <h2 className="card-title">Carga de Contenido RAG</h2>
+                        <h2 className="card-title">
+                            Carga de Contenido RAG
+                            <button 
+                                className="button" 
+                                onClick={async () => {
+                                    if (confirm('¿Estás seguro de que quieres limpiar todo el contenido RAG almacenado?')) {
+                                        try {
+                                            const res = await fetch(`${API_BASE}/api/clear-rag`, {
+                                                method: 'DELETE'
+                                            });
+                                            if (res.ok) {
+                                                setUploadStatus({ text: '', pdf: '', url: '' });
+                                                alert('Contenido RAG limpiado exitosamente');
+                                                checkRagStatus(); // Update status after clearing
+                                            }
+                                        } catch (error) {
+                                            alert('Error al limpiar RAG');
+                                        }
+                                    }
+                                }}
+                                style={{ 
+                                    float: 'right', 
+                                    padding: '6px 12px', 
+                                    fontSize: '12px',
+                                    background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)'
+                                }}
+                            >
+                                🗑️ Limpiar Todo
+                            </button>
+                        </h2>
+                        <div style={{ clear: 'both' }}></div>
+                        {ragStatus.total_chunks > 0 && (
+                            <div style={{ 
+                                padding: '10px', 
+                                background: '#e3f2fd', 
+                                borderRadius: '4px', 
+                                marginBottom: '15px',
+                                fontSize: '14px',
+                                color: '#1976d2'
+                            }}>
+                                📊 <strong>Estado actual:</strong> {ragStatus.total_chunks} fragmentos almacenados de {ragStatus.sources.length} fuente(s)
+                            </div>
+                        )}
                         <div className="upload-section">
                             <div className="upload-box">
                                 <div className="upload-title">📝 Subir Texto</div>

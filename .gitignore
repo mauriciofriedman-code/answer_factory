@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+backend/venv/
+backend/.venv/
+backend/.python-version
+backend/data/
+
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Secretos / variables de entorno (cubre cualquier ubicación y extensión)
+.env
+.env.*
+*.env
+*.env.txt
+**/.env
+**/.env.*
+!*.env.example
+!.env.example
+
+# Artefactos de trabajo locales (no deben subirse)
+_crash_course_extracted.txt
+backend/smoke_result.txt
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

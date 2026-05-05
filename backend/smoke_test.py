@@ -254,8 +254,66 @@ def test_session_isolation() -> None:
     show("status sesión nueva", resp.json())
 
 
+def test_logprobs() -> None:
+    banner("7 · /api/generate con return_logprobs (solo OpenAI)")
+    payload = {
+        "prompt": "Di literalmente: 'la fotosíntesis convierte luz en energía'.",
+        "model": "gpt-4o-mini",
+        "style": "natural",
+        "temperature": 0.2,
+        "top_p": 0.9,
+        "frequency_penalty": 0.0,
+        "presence_penalty": 0.0,
+        "max_tokens": 60,
+        "use_rag": False,
+        "stop_sequences": [],
+        "return_logprobs": True,
+        "top_logprobs": 3,
+    }
+    res = call("POST", "/api/generate", json=payload)
+    show("response (truncada)", res.get("response", ""), max_chars=300)
+
+    lp = res.get("logprobs")
+    if not isinstance(lp, list) or not lp:
+        print("\n❌ logprobs no aparecieron (esperaba una lista no vacía).")
+        print(f"   Tipo recibido: {type(lp).__name__} · valor: {lp}")
+        return
+
+    print(f"\n✓ logprobs OK · {len(lp)} tokens devueltos")
+    print("Primeros 5 tokens (con sus 3 alternativas top):")
+    for entry in lp[:5]:
+        token = entry.get("token")
+        logp = entry.get("logprob")
+        alts = entry.get("top_alternatives") or []
+        alt_summary = ", ".join(
+            f"{a.get('token')!r}={a.get('logprob'):.2f}" for a in alts
+        )
+        print(f"  {token!r}  logp={logp:.3f}  alts=[{alt_summary}]")
+
+
+def test_logprobs_anthropic_silently_ignored() -> None:
+    banner("8 · return_logprobs con Anthropic (debe ignorarse, no romper)")
+    payload = {
+        "prompt": "Saluda en una oración.",
+        "model": "claude-haiku-4-5",
+        "style": "natural",
+        "temperature": 0.5,
+        "top_p": 0.9,
+        "frequency_penalty": 0.0,
+        "presence_penalty": 0.0,
+        "max_tokens": 60,
+        "use_rag": False,
+        "stop_sequences": [],
+        "return_logprobs": True,
+        "top_logprobs": 3,
+    }
+    res = call("POST", "/api/generate", json=payload)
+    show("response (truncada)", res.get("response", ""), max_chars=200)
+    print(f"\nlogprobs en respuesta Anthropic: {res.get('logprobs')!r}  (esperado: None)")
+
+
 def test_clear_rag() -> None:
-    banner("7 · Limpiar fuentes de mi sesión")
+    banner("9 · Limpiar fuentes de mi sesión")
     show("/api/clear-rag", call("DELETE", "/api/clear-rag"))
     show("/api/rag-status", call("GET", "/api/rag-status"))
 
@@ -285,6 +343,8 @@ def main() -> int:
     test_rag_text_then_query()
     test_rag_url()
     test_session_isolation()
+    test_logprobs()
+    test_logprobs_anthropic_silently_ignored()
     test_clear_rag()
 
     banner("FIN")

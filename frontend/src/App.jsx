@@ -134,6 +134,12 @@ export default function App() {
     setActivePresetId(preset.id);
   };
 
+  const handleResetToBase = () => {
+    setStyle('natural');
+    setParams(DEFAULT_PARAMS);
+    setActivePresetId(null);
+  };
+
   return (
     <div className="page">
       <div className="container">
@@ -161,7 +167,11 @@ export default function App() {
 
         {tab === 'lab' && (
           <>
-            <PresetBar onApply={handleApplyPreset} activeId={activePresetId} />
+            <PresetBar
+              onApply={handleApplyPreset}
+              onReset={handleResetToBase}
+              activeId={activePresetId}
+            />
 
             <div className="main-grid">
               <div className="card">

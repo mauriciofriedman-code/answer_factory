@@ -96,6 +96,6 @@ ALLOWED_ORIGINS = [
     ).split(",") if o.strip()
 ]
 
-# Cookie de sesión
-SESSION_COOKIE = "answer_factory_session"
-SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30  # 30 días
+# Sesión por header (first-party desde el browser; sobrevive el bloqueo de
+# cookies de terceros que aplica Chrome incógnito y Safari/Firefox).
+SESSION_HEADER = "X-Session-Id"

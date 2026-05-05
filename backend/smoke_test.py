@@ -39,18 +39,27 @@ def show(label: str, payload: Any, max_chars: int = 600) -> None:
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Sesión HTTP — preserva la cookie answer_factory_session entre requests
+# Sesión HTTP — preserva el header X-Session-Id entre requests, igual
+# que hace el frontend con localStorage.
 # ──────────────────────────────────────────────────────────────────────
 
+SESSION_HEADER = "X-Session-Id"
 session = requests.Session()
+_sid: dict = {"value": None}
 
 
 def call(method: str, path: str, **kwargs) -> dict:
     url = f"{BASE}{path}"
+    headers = dict(kwargs.pop("headers", {}) or {})
+    if _sid["value"]:
+        headers[SESSION_HEADER] = _sid["value"]
     started = time.perf_counter()
-    resp = session.request(method, url, timeout=TIMEOUT, **kwargs)
+    resp = session.request(method, url, timeout=TIMEOUT, headers=headers, **kwargs)
     elapsed = (time.perf_counter() - started) * 1000
     print(f"[{method} {path}] → {resp.status_code} · {elapsed:.0f} ms")
+    returned_sid = resp.headers.get(SESSION_HEADER)
+    if returned_sid:
+        _sid["value"] = returned_sid
     if resp.status_code >= 400:
         print(f"  body: {resp.text[:400]}")
         return {"_status": resp.status_code, "_error": resp.text}
@@ -237,10 +246,11 @@ def test_rag_url() -> None:
 
 def test_session_isolation() -> None:
     banner("6 · Aislamiento por sesión")
-    print("Pista: una nueva session de requests inicia su propia cookie y debería ver 0 fragmentos.")
+    print("Pista: sin enviar X-Session-Id el backend genera un sid nuevo y la colección está vacía.")
     fresh = requests.Session()
     resp = fresh.get(f"{BASE}/api/rag-status", timeout=TIMEOUT)
     print(f"[GET /api/rag-status (sesión nueva)] → {resp.status_code}")
+    print(f"  X-Session-Id devuelto: {resp.headers.get(SESSION_HEADER)}")
     show("status sesión nueva", resp.json())
 
 

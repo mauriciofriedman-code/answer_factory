@@ -12,8 +12,7 @@ from config import (
     ALLOWED_ORIGINS,
     DEFAULT_MODEL,
     OPENAI_API_KEY,
-    SESSION_COOKIE,
-    SESSION_COOKIE_MAX_AGE,
+    SESSION_HEADER,
     STYLE_PROMPTS,
     SUPPORTED_MODELS,
 )
@@ -31,28 +30,18 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=[SESSION_HEADER],
 )
 
 
 def get_session_id(request: Request, response: Response) -> str:
-    sid = request.cookies.get(SESSION_COOKIE)
-    if not sid:
+    sid = request.headers.get(SESSION_HEADER)
+    if not sid or len(sid) < 8 or len(sid) > 128:
         sid = secrets.token_urlsafe(16)
-        # En cross-site (frontend.onrender.com -> backend.onrender.com) el
-        # browser solo reenvía la cookie con samesite=none + secure. En
-        # localhost (HTTP) caemos a samesite=lax porque secure exige HTTPS.
-        is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
-        response.set_cookie(
-            key=SESSION_COOKIE,
-            value=sid,
-            max_age=SESSION_COOKIE_MAX_AGE,
-            httponly=True,
-            samesite="none" if is_https else "lax",
-            secure=is_https,
-        )
+    response.headers[SESSION_HEADER] = sid
     return sid
 
 

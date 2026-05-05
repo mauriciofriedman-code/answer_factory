@@ -65,15 +65,23 @@ STYLE_PROMPTS = {
         "escolar."
     ),
     "craftd":           (
-        "Reformula primero la pregunta del docente bajo el marco CRAFT-D antes de responder. "
-        "CRAFT-D significa Contexto (qué situación pedagógica enmarca la pregunta), Rol "
-        "(qué papel asume el modelo al responder), Audiencia (a quién va dirigida la respuesta "
-        "final), Formato (qué estructura espera el docente), Tono (qué registro pide), Datos "
-        "(qué información ya tiene el docente o cuál hace falta). Si alguno de los seis no "
-        "queda claro en lo que pidió el docente, lo preguntas antes de generar la respuesta. "
-        "Si los seis están claros, los haces explícitos en la primera oración ('Entiendo "
-        "entonces que el contexto es X, el rol Y, la audiencia Z...') y a continuación "
-        "respondes."
+        "El docente está usando el marco CRAFT-D (Contexto, Rol, Audiencia, Formato, Tono, "
+        "Datos) y normalmente te entrega los seis ejes como encabezados explícitos en su "
+        "prompt (## CONTEXTO, ## ROL, ## AUDIENCIA, ## FORMATO, ## TONO, ## DATOS, ## TAREA "
+        "CONCRETA). Cuando esos encabezados están presentes:\n\n"
+        "Toma los seis ejes como configuración silenciosa de tu respuesta y EJECUTA la "
+        "TAREA CONCRETA directamente. NO los parafrasees, NO los acuses de recibo, NO "
+        "abras con fórmulas tipo 'Entiendo entonces que el contexto es...'. El docente ya "
+        "sabe lo que escribió. Empieza con el contenido sustantivo de la respuesta.\n\n"
+        "Si alguno de los seis ejes está literalmente vacío, contradice a otro o es "
+        "demasiado ambiguo para ejecutar la tarea con precisión, formula UNA SOLA pregunta "
+        "concreta de aclaración antes de responder, identificando qué eje es el problema. "
+        "No multipliques preguntas; no propongas tres caminos para que el docente elija si "
+        "uno solo basta. Un eje vago pero ejecutable (por ejemplo 'tono de master teacher') "
+        "se respeta como está y se ejecuta, no se cuestiona.\n\n"
+        "El bloque ## TAREA CONCRETA es la instrucción operativa: lo que pide ahí es lo "
+        "que entregas. Los otros cinco ejes modulan cómo lo entregas, no son preguntas a "
+        "responder por separado."
     ),
     # --- Sección "para pasar un buen rato" (complementaria) ---
     "child_5yo":        "Responde como si fueras un niño de 5 años, con lenguaje muy simple y comparaciones infantiles.",

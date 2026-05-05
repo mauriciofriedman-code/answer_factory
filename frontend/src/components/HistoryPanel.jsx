@@ -3,8 +3,7 @@ import {
   loadHistory,
   deleteEntry,
   clearHistory,
-  entryToMarkdown,
-  downloadMarkdown,
+  exportEntriesToPdf,
 } from '../history.js';
 
 export default function HistoryPanel({ refreshKey, onReuse }) {
@@ -27,16 +26,18 @@ export default function HistoryPanel({ refreshKey, onReuse }) {
   };
 
   const handleExportOne = (entry) => {
-    const md = entryToMarkdown({ ...entry, notes: notes[entry.id] });
-    downloadMarkdown(`iteracion_${slug(entry.created_at)}.md`, md);
+    exportEntriesToPdf(
+      `iteracion_${slug(entry.created_at)}.pdf`,
+      [{ ...entry, notes: notes[entry.id] }]
+    );
   };
 
   const handleExportAll = () => {
     if (!entries.length) return;
-    const md = entries
-      .map((e) => entryToMarkdown({ ...e, notes: notes[e.id] }))
-      .join('\n\n---\n\n');
-    downloadMarkdown(`compromiso_lunes_${slug(new Date().toISOString())}.md`, md);
+    exportEntriesToPdf(
+      `compromiso_lunes_${slug(new Date().toISOString())}.pdf`,
+      entries.map((e) => ({ ...e, notes: notes[e.id] }))
+    );
   };
 
   return (
@@ -49,7 +50,7 @@ export default function HistoryPanel({ refreshKey, onReuse }) {
             onClick={handleExportAll}
             disabled={!entries.length}
           >
-            ⬇ Exportar todo (Markdown)
+            ⬇ Exportar todo (PDF)
           </button>
           <button
             className="button danger small"
@@ -62,8 +63,9 @@ export default function HistoryPanel({ refreshKey, onReuse }) {
       </div>
 
       <p className="hint-block">
-        Cada generación se guarda automáticamente en este navegador. Exporta a Markdown
-        para subir tu compromiso del lunes al foro de Moodle.
+        Cada generación se guarda automáticamente en este navegador. Exporta a PDF
+        para subir tu compromiso del lunes al foro de Moodle. En el diálogo de
+        impresión elige <strong>Guardar como PDF</strong> (o <em>Save as PDF</em>) como destino.
       </p>
 
       {entries.length === 0 && (
@@ -93,7 +95,7 @@ export default function HistoryPanel({ refreshKey, onReuse }) {
                     ↺ Reusar
                   </button>
                   <button className="button small" onClick={() => handleExportOne(e)}>
-                    ⬇ MD
+                    ⬇ PDF
                   </button>
                   <button
                     className="button danger small"

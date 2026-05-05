@@ -49,7 +49,7 @@ export const PRESETS = [
       top_p: 0.9,
       frequency_penalty: 0.0,
       presence_penalty: 0.0,
-      max_tokens: 700,
+      max_tokens: 2200,
     },
   },
   {
@@ -62,7 +62,7 @@ export const PRESETS = [
       top_p: 0.9,
       frequency_penalty: 0.0,
       presence_penalty: 0.0,
-      max_tokens: 500,
+      max_tokens: 1800,
     },
   },
   {
@@ -75,7 +75,7 @@ export const PRESETS = [
       top_p: 0.9,
       frequency_penalty: 0.0,
       presence_penalty: 0.0,
-      max_tokens: 600,
+      max_tokens: 2000,
     },
   },
   {
@@ -88,7 +88,7 @@ export const PRESETS = [
       top_p: 1.0,
       frequency_penalty: 0.0,
       presence_penalty: 0.3,
-      max_tokens: 600,
+      max_tokens: 2200,
     },
   },
 ];

@@ -58,7 +58,7 @@ class GenerateRequest(BaseModel):
     top_p: float = 0.9
     frequency_penalty: float = 0.0
     presence_penalty: float = 0.0
-    max_tokens: int = Field(500, ge=1, le=4000)
+    max_tokens: int = Field(2000, ge=1, le=4000)
     style: str = "natural"
     use_rag: bool = False
     stop_sequences: List[str] = []
@@ -85,7 +85,7 @@ class VariantRequest(BaseModel):
     top_p: float = 0.9
     frequency_penalty: float = 0.0
     presence_penalty: float = 0.0
-    max_tokens: int = Field(500, ge=1, le=4000)
+    max_tokens: int = Field(2000, ge=1, le=4000)
     stop_sequences: List[str] = []
 
 

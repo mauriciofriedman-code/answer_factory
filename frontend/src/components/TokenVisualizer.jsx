@@ -10,7 +10,7 @@ export default function TokenVisualizer({ models, defaultModel }) {
   const [text, setText] = useState(
     'La fotosíntesis convierte azúcar en oxígeno usando luz solar.'
   );
-  const [model, setModel] = useState(defaultModel || 'gpt-4o-mini');
+  const [model, setModel] = useState(defaultModel || 'claude-sonnet-4-6');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 

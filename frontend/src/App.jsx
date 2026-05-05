@@ -17,7 +17,7 @@ const DEFAULT_PARAMS = {
   top_p: 0.9,
   frequency_penalty: 0.0,
   presence_penalty: 0.0,
-  max_tokens: 500,
+  max_tokens: 2000,
 };
 
 const TABS = [
@@ -37,8 +37,8 @@ export default function App() {
   const [params, setParams] = useState(DEFAULT_PARAMS);
   const [useRag, setUseRag] = useState(false);
   const [models, setModels] = useState([]);
-  const [model, setModel] = useState('gpt-4o-mini');
-  const [defaultModel, setDefaultModel] = useState('gpt-4o-mini');
+  const [model, setModel] = useState('claude-sonnet-4-6');
+  const [defaultModel, setDefaultModel] = useState('claude-sonnet-4-6');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [ragStatus, setRagStatus] = useState({ total_chunks: 0, sources: [] });
@@ -52,8 +52,8 @@ export default function App() {
       .publicConfig()
       .then((cfg) => {
         setModels(cfg.models || []);
-        setModel(cfg.default_model || 'gpt-4o-mini');
-        setDefaultModel(cfg.default_model || 'gpt-4o-mini');
+        setModel(cfg.default_model || 'claude-sonnet-4-6');
+        setDefaultModel(cfg.default_model || 'claude-sonnet-4-6');
       })
       .catch(() => {});
     refreshRag();

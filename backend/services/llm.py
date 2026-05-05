@@ -1,18 +1,23 @@
-"""Cliente unificado para OpenAI y Anthropic con SDK moderno."""
+"""Cliente unificado para OpenAI, Anthropic y Google Gemini con SDK moderno."""
 from typing import List, Optional, Dict, Any
 from openai import OpenAI
 from anthropic import Anthropic
+from google import genai
+from google.genai import types as genai_types
 
 from config import (
     OPENAI_API_KEY,
     ANTHROPIC_API_KEY,
+    GOOGLE_API_KEY,
     SUPPORTED_MODELS,
     STYLE_PROMPTS,
+    BASE_SYSTEM,
     DEFAULT_MODEL,
 )
 
 _openai_client: Optional[OpenAI] = None
 _anthropic_client: Optional[Anthropic] = None
+_google_client: Optional[genai.Client] = None
 
 
 def get_openai() -> OpenAI:
@@ -33,8 +38,25 @@ def get_anthropic() -> Anthropic:
     return _anthropic_client
 
 
+def get_google() -> genai.Client:
+    global _google_client
+    if _google_client is None:
+        if not GOOGLE_API_KEY:
+            raise RuntimeError("GOOGLE_API_KEY no configurada")
+        _google_client = genai.Client(api_key=GOOGLE_API_KEY)
+    return _google_client
+
+
 def resolve_style(style: str) -> Optional[str]:
     return STYLE_PROMPTS.get(style)
+
+
+def build_system_message(style: str) -> str:
+    """BASE_SYSTEM siempre, con el overlay del estilo si lo hay."""
+    overlay = STYLE_PROMPTS.get(style)
+    if overlay:
+        return f"{BASE_SYSTEM}\n\n---\n\n{overlay}"
+    return BASE_SYSTEM
 
 
 def build_rag_prompt(user_prompt: str, context_blocks: List[str]) -> str:
@@ -70,7 +92,7 @@ def generate(
         model = DEFAULT_MODEL
 
     provider = SUPPORTED_MODELS[model]["provider"]
-    system_message = resolve_style(style)
+    system_message = build_system_message(style)
     user_content = build_rag_prompt(prompt, context_blocks)
 
     if provider == "openai":
@@ -124,13 +146,16 @@ def generate(
 
     if provider == "anthropic":
         client = get_anthropic()
-        anthropic_model = "claude-haiku-4-5-20251001" if model == "claude-haiku-4-5" else model
+        anthropic_model = {
+            "claude-haiku-4-5":  "claude-haiku-4-5-20251001",
+        }.get(model, model)
 
+        # Anthropic 4.x rechaza enviar `temperature` y `top_p` simultáneamente.
+        # Priorizamos `temperature` por ser la perilla principal del laboratorio.
         kwargs = {
             "model": anthropic_model,
             "max_tokens": max_tokens,
             "temperature": temperature,
-            "top_p": top_p,
             "messages": [{"role": "user", "content": user_content}],
         }
         if system_message:
@@ -146,6 +171,40 @@ def generate(
             "input_tokens": resp.usage.input_tokens,
             "output_tokens": resp.usage.output_tokens,
             "finish_reason": resp.stop_reason,
+            "logprobs": None,
+        }
+
+    if provider == "google":
+        client = get_google()
+        cfg_kwargs: Dict[str, Any] = {
+            "temperature": temperature,
+            "top_p": top_p,
+            "max_output_tokens": max_tokens,
+        }
+        if system_message:
+            cfg_kwargs["system_instruction"] = system_message
+        if stop_sequences:
+            cfg_kwargs["stop_sequences"] = stop_sequences
+
+        resp = client.models.generate_content(
+            model=model,
+            contents=user_content,
+            config=genai_types.GenerateContentConfig(**cfg_kwargs),
+        )
+
+        usage = getattr(resp, "usage_metadata", None)
+        finish = None
+        candidates = getattr(resp, "candidates", None) or []
+        if candidates:
+            fr = getattr(candidates[0], "finish_reason", None)
+            finish = getattr(fr, "name", None) or (str(fr) if fr is not None else None)
+
+        return {
+            "text": resp.text or "",
+            "model": model,
+            "input_tokens": getattr(usage, "prompt_token_count", None) if usage else None,
+            "output_tokens": getattr(usage, "candidates_token_count", None) if usage else None,
+            "finish_reason": finish,
             "logprobs": None,
         }
 

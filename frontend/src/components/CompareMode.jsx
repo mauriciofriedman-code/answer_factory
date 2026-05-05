@@ -3,9 +3,9 @@ import { api } from '../api.js';
 import { saveEntry } from '../history.js';
 
 const PRESETS = [
-  { label: 'Conservador', temperature: 0.2, top_p: 0.9, frequency_penalty: 0, presence_penalty: 0, max_tokens: 500, style: 'natural' },
-  { label: 'Balanceado',  temperature: 0.5, top_p: 0.9, frequency_penalty: 0, presence_penalty: 0, max_tokens: 500, style: 'friendly_teacher' },
-  { label: 'Creativo',    temperature: 0.9, top_p: 1.0, frequency_penalty: 0, presence_penalty: 0.3, max_tokens: 500, style: 'natural' },
+  { label: 'Conservador', temperature: 0.2, top_p: 0.9, frequency_penalty: 0, presence_penalty: 0, max_tokens: 1800, style: 'natural' },
+  { label: 'Balanceado',  temperature: 0.5, top_p: 0.9, frequency_penalty: 0, presence_penalty: 0, max_tokens: 2000, style: 'friendly_teacher' },
+  { label: 'Creativo',    temperature: 0.9, top_p: 1.0, frequency_penalty: 0, presence_penalty: 0.3, max_tokens: 2200, style: 'natural' },
 ];
 
 const STYLE_LABELS = {
@@ -19,7 +19,7 @@ export default function CompareMode({ models, defaultModel, onHistoryChange }) {
   const [prompt, setPrompt] = useState('');
   const [useRag, setUseRag] = useState(false);
   const [variants, setVariants] = useState(
-    PRESETS.map((p) => ({ ...p, model: defaultModel || 'gpt-4o-mini' }))
+    PRESETS.map((p) => ({ ...p, model: defaultModel || 'claude-sonnet-4-6' }))
   );
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -31,7 +31,7 @@ export default function CompareMode({ models, defaultModel, onHistoryChange }) {
     if (variants.length >= 4) return;
     setVariants((vs) => [
       ...vs,
-      { ...PRESETS[1], label: `Variante ${vs.length + 1}`, model: defaultModel || 'gpt-4o-mini' },
+      { ...PRESETS[1], label: `Variante ${vs.length + 1}`, model: defaultModel || 'claude-sonnet-4-6' },
     ]);
   };
 

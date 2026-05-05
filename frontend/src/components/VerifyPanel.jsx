@@ -21,7 +21,7 @@ export default function VerifyPanel({ responseText, ragHasContent, judgeModel })
     try {
       const data = await api.verifyClaims({
         response_text: responseText,
-        judge_model: judgeModel || 'gpt-4o-mini',
+        judge_model: judgeModel || 'claude-sonnet-4-6',
       });
       setReport(data);
     } catch (err) {

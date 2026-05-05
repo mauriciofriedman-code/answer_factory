@@ -1,6 +1,6 @@
 """Extracción y troceo de texto desde texto plano, URL y PDF."""
 from io import BytesIO
-from typing import List
+from typing import List, Tuple
 from urllib.parse import urlparse
 
 import requests
@@ -24,6 +24,22 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150) -> List[st
             break
         start = end - overlap
     return chunks
+
+
+def chunk_pages(
+    pages: List[str],
+    chunk_size: int = 1000,
+    overlap: int = 150,
+) -> List[Tuple[str, int]]:
+    """Trocea respetando los límites de página: cada chunk lleva su número de página real (1-indexed)."""
+    out: List[Tuple[str, int]] = []
+    for idx, raw in enumerate(pages, start=1):
+        page_text = (raw or "").strip()
+        if not page_text:
+            continue
+        for piece in chunk_text(page_text, chunk_size, overlap):
+            out.append((piece, idx))
+    return out
 
 
 def extract_url(url: str, timeout: int = 15) -> tuple[str, str]:
@@ -67,3 +83,18 @@ def extract_pdf(file_bytes: bytes) -> str:
         return ""
     text = extract_text(BytesIO(file_bytes)) or ""
     return text.strip()
+
+
+def extract_pdf_pages(file_bytes: bytes) -> List[str]:
+    """Devuelve el texto del PDF página por página (lista 1-indexada por su orden)."""
+    if not file_bytes:
+        return []
+    full = extract_text(BytesIO(file_bytes)) or ""
+    if not full:
+        return []
+    # pdfminer separa páginas con form-feed (\f) por default.
+    pages = full.split("\f")
+    # La última página suele venir vacía por el \f final.
+    while pages and not pages[-1].strip():
+        pages.pop()
+    return pages

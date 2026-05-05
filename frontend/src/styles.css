@@ -249,8 +249,26 @@ textarea.upload-input { min-height: 70px; resize: vertical; }
   color: var(--ink-muted);
   margin-bottom: 10px;
 }
-.source-item { padding: 3px 0; }
+.source-item {
+  padding: 8px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+.source-item:first-of-type { border-top: none; }
+.source-head { line-height: 1.45; }
+.source-title { color: var(--ink); font-weight: 600; }
+.source-author { color: var(--ink-muted); }
+.source-loc { color: var(--ink-muted); }
 .similarity { color: var(--accent); font-weight: 600; }
+.source-snippet {
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent);
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-style: italic;
+  line-height: 1.5;
+}
 
 .response-display {
   background: var(--soft);

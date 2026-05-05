@@ -327,7 +327,7 @@ def upload_url(payload: URLUploadRequest, request: Request, response: Response):
         session_id,
         chunks,
         title=title,
-        author=payload.url,
+        author="Autor desconocido",
         source_type="url",
         source_ref=payload.url,
     )
@@ -348,23 +348,28 @@ async def upload_pdf(
 ):
     session_id = get_session_id(request, response)
     contents = await file.read()
-    text = ingestion.extract_pdf(contents)
-    if not text:
+    pages = ingestion.extract_pdf_pages(contents)
+    if not pages:
         raise HTTPException(status_code=400, detail="No se pudo extraer texto del PDF")
-    chunks = ingestion.chunk_text(text, 1000, 150)
+    pairs = ingestion.chunk_pages(pages, 1000, 150)
+    if not pairs:
+        raise HTTPException(status_code=400, detail="No se pudo extraer texto del PDF")
+    chunks = [p[0] for p in pairs]
+    chunk_pages = [p[1] for p in pairs]
     pdf_title = title or (file.filename or "PDF").replace(".pdf", "")
     count = _safe_add_chunks(
         session_id,
         chunks,
         title=pdf_title,
-        author=author or "PDF",
+        author=(author or "").strip() or "Autor desconocido",
         source_type="pdf",
         source_ref=file.filename or "archivo.pdf",
+        pages=chunk_pages,
     )
     return {
         "status": "success",
         "chunks_created": count,
-        "metadata": {"title": pdf_title, "filename": file.filename},
+        "metadata": {"title": pdf_title, "filename": file.filename, "pages": len(pages)},
     }
 
 

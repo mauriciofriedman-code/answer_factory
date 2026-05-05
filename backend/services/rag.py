@@ -1,6 +1,6 @@
 """Capa RAG sobre ChromaDB persistente, scoped por sesión."""
 from datetime import datetime
-from typing import Iterable, List, Dict, Any
+from typing import Iterable, List, Dict, Any, Optional
 import uuid
 
 import chromadb
@@ -70,27 +70,34 @@ def add_chunks(
     author: str,
     source_type: str,
     source_ref: str,
+    pages: Optional[List[int]] = None,
 ) -> int:
+    """Indexa chunks. ``pages`` (opcional, mismo largo que ``chunks``) lleva el
+    número de página REAL del PDF; para texto/URL se omite y mostramos el
+    índice de fragmento."""
     if not chunks:
         return 0
     collection = _get_collection(session_id)
     now = datetime.utcnow().isoformat()
     doc_id = str(uuid.uuid4())[:8]
-    ids = [f"{doc_id}_{i}" for i in range(len(chunks))]
-    metadatas = [
-        {
+    total = len(chunks)
+    ids = [f"{doc_id}_{i}" for i in range(total)]
+    metadatas = []
+    for i in range(total):
+        meta = {
             "title": title or "Sin título",
             "author": author or "Autor desconocido",
             "source_type": source_type,
             "source_ref": source_ref,
-            "page": i + 1,
             "chunk_index": i,
+            "total_chunks": total,
             "uploaded_at": now,
         }
-        for i in range(len(chunks))
-    ]
+        if pages and i < len(pages) and pages[i]:
+            meta["page"] = int(pages[i])
+        metadatas.append(meta)
     collection.add(documents=chunks, metadatas=metadatas, ids=ids)
-    return len(chunks)
+    return total
 
 
 def query(session_id: str, prompt: str, n_results: int = 4) -> Dict[str, Any]:
@@ -103,6 +110,32 @@ def query(session_id: str, prompt: str, n_results: int = 4) -> Dict[str, Any]:
         "metadatas": res.get("metadatas", [[]])[0],
         "distances": res.get("distances", [[]])[0],
     }
+
+
+_PLACEHOLDER_AUTHORS = {"", "autor desconocido", "pdf", "url"}
+
+
+def _clean_author(author: Any, source_type: Optional[str], source_ref: Any) -> Optional[str]:
+    a = (author or "").strip()
+    # En upload-url guardábamos la URL como autor — confunde, no es autoría.
+    if source_type == "url" and a == (source_ref or ""):
+        return None
+    if a.lower() in _PLACEHOLDER_AUTHORS:
+        return None
+    return a or None
+
+
+def _location_label(meta: Dict[str, Any]) -> str:
+    source_type = meta.get("source_type")
+    page = meta.get("page")
+    chunk_index = meta.get("chunk_index")
+    total = meta.get("total_chunks")
+    if source_type == "pdf" and page:
+        return f"página {page}"
+    if total:
+        # 1-indexed para humanos.
+        return f"fragmento {(chunk_index or 0) + 1} de {total}"
+    return f"fragmento {(chunk_index or 0) + 1}"
 
 
 def status(session_id: str) -> Dict[str, Any]:
@@ -140,22 +173,35 @@ def format_context_blocks(retrieved: Dict[str, Any]) -> List[str]:
     blocks = []
     for chunk, meta in zip(chunks, metas):
         title = meta.get("title", "Sin título")
-        author = meta.get("author", "Autor desconocido")
-        page = meta.get("page", "?")
-        blocks.append(f"[Fuente: {title} — {author} — fragmento {page}]\n{chunk}")
+        author = _clean_author(meta.get("author"), meta.get("source_type"), meta.get("source_ref"))
+        loc = _location_label(meta)
+        head_parts = [title]
+        if author:
+            head_parts.append(author)
+        head_parts.append(loc)
+        head = " — ".join(head_parts)
+        blocks.append(f"[Fuente: {head}]\n{chunk}")
     return blocks
 
 
 def format_sources(retrieved: Dict[str, Any]) -> List[Dict[str, Any]]:
+    chunks = retrieved.get("chunks") or []
     metas = retrieved.get("metadatas") or []
     distances = retrieved.get("distances") or []
     out = []
-    for meta, dist in zip(metas, distances):
+    for chunk, meta, dist in zip(chunks, metas, distances):
+        snippet = (chunk or "").strip().replace("\n", " ")
+        if len(snippet) > 220:
+            snippet = snippet[:220].rstrip() + "…"
         out.append({
             "title": meta.get("title", "Sin título"),
-            "author": meta.get("author", "Autor desconocido"),
-            "page": meta.get("page", "?"),
+            "author": _clean_author(meta.get("author"), meta.get("source_type"), meta.get("source_ref")),
+            "location": _location_label(meta),
+            "page": meta.get("page"),
+            "chunk_index": meta.get("chunk_index"),
+            "total_chunks": meta.get("total_chunks"),
             "type": meta.get("source_type"),
+            "snippet": snippet,
             "similarity": round(1 - float(dist), 3) if dist is not None else None,
         })
     return out

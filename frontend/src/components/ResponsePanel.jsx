@@ -30,9 +30,18 @@ export default function ResponsePanel({ result, useRag, loading, ragHasContent, 
               <strong>Fuentes recuperadas</strong>
               {result.sources.map((s, i) => (
                 <div key={i} className="source-item">
-                  📄 {s.title} — {s.author} · fragmento {s.page}
-                  {s.similarity != null && (
-                    <span className="similarity"> · sim {s.similarity}</span>
+                  <div className="source-head">
+                    <span className="source-title">📄 {s.title}</span>
+                    {s.author && (
+                      <span className="source-author"> — {s.author}</span>
+                    )}
+                    <span className="source-loc"> · {s.location}</span>
+                    {s.similarity != null && (
+                      <span className="similarity"> · sim {s.similarity}</span>
+                    )}
+                  </div>
+                  {s.snippet && (
+                    <blockquote className="source-snippet">«{s.snippet}»</blockquote>
                   )}
                 </div>
               ))}

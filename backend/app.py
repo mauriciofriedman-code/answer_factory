@@ -41,12 +41,17 @@ def get_session_id(request: Request, response: Response) -> str:
     sid = request.cookies.get(SESSION_COOKIE)
     if not sid:
         sid = secrets.token_urlsafe(16)
+        # En cross-site (frontend.onrender.com -> backend.onrender.com) el
+        # browser solo reenvía la cookie con samesite=none + secure. En
+        # localhost (HTTP) caemos a samesite=lax porque secure exige HTTPS.
+        is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
         response.set_cookie(
             key=SESSION_COOKIE,
             value=sid,
             max_age=SESSION_COOKIE_MAX_AGE,
             httponly=True,
-            samesite="lax",
+            samesite="none" if is_https else "lax",
+            secure=is_https,
         )
     return sid
 

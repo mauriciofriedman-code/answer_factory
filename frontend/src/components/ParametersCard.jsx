@@ -1,7 +1,7 @@
 import Slider from './Slider.jsx';
 import { PARAM_DESCRIPTIONS } from '../config.js';
 
-export default function ParametersCard({ params, onChange }) {
+export default function ParametersCard({ params, onChange, locked = [] }) {
   const update = (k) => (v) => onChange({ ...params, [k]: v });
 
   return (
@@ -15,6 +15,7 @@ export default function ParametersCard({ params, onChange }) {
         step={0.1}
         value={params.temperature}
         onChange={update('temperature')}
+        locked={locked.includes('temperature')}
         description={PARAM_DESCRIPTIONS.temperature}
         format={(v) => v.toFixed(1)}
       />
@@ -25,6 +26,7 @@ export default function ParametersCard({ params, onChange }) {
         step={0.01}
         value={params.top_p}
         onChange={update('top_p')}
+        locked={locked.includes('top_p')}
         description={PARAM_DESCRIPTIONS.top_p}
         format={(v) => v.toFixed(2)}
       />
@@ -35,6 +37,7 @@ export default function ParametersCard({ params, onChange }) {
         step={0.1}
         value={params.frequency_penalty}
         onChange={update('frequency_penalty')}
+        locked={locked.includes('frequency_penalty')}
         description={PARAM_DESCRIPTIONS.frequency_penalty}
         format={(v) => v.toFixed(1)}
       />
@@ -45,6 +48,7 @@ export default function ParametersCard({ params, onChange }) {
         step={0.1}
         value={params.presence_penalty}
         onChange={update('presence_penalty')}
+        locked={locked.includes('presence_penalty')}
         description={PARAM_DESCRIPTIONS.presence_penalty}
         format={(v) => v.toFixed(1)}
       />

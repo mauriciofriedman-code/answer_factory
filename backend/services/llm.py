@@ -92,6 +92,7 @@ def generate(
         model = DEFAULT_MODEL
 
     provider = SUPPORTED_MODELS[model]["provider"]
+    locked = set(SUPPORTED_MODELS[model]["locked"])
     system_message = build_system_message(style)
     user_content = build_rag_prompt(prompt, context_blocks)
 
@@ -102,17 +103,24 @@ def generate(
             messages.append({"role": "system", "content": system_message})
         messages.append({"role": "user", "content": user_content})
 
+        # `max_tokens` ya no lo acepta la familia GPT-5; `max_completion_tokens` sí,
+        # y GPT-4.1 también.
         kwargs: Dict[str, Any] = {
             "model": model,
             "messages": messages,
-            "temperature": temperature,
-            "top_p": top_p,
-            "frequency_penalty": frequency_penalty,
-            "presence_penalty": presence_penalty,
-            "max_tokens": max_tokens,
+            "max_completion_tokens": max_tokens,
         }
-        if stop_sequences:
+        for name, value in (
+            ("temperature", temperature),
+            ("top_p", top_p),
+            ("frequency_penalty", frequency_penalty),
+            ("presence_penalty", presence_penalty),
+        ):
+            if name not in locked:
+                kwargs[name] = value
+        if stop_sequences and "stop_sequences" not in locked:
             kwargs["stop"] = stop_sequences
+        return_logprobs = return_logprobs and "logprobs" not in locked
         if return_logprobs:
             kwargs["logprobs"] = True
             kwargs["top_logprobs"] = max(1, min(int(top_logprobs), 5))
@@ -151,13 +159,15 @@ def generate(
         }.get(model, model)
 
         # Anthropic 4.x rechaza enviar `temperature` y `top_p` simultáneamente.
-        # Priorizamos `temperature` por ser la perilla principal del laboratorio.
+        # Priorizamos `temperature` por ser la perilla principal del laboratorio;
+        # Sonnet 5 / Opus 5 no aceptan ninguna de las dos.
         kwargs = {
             "model": anthropic_model,
             "max_tokens": max_tokens,
-            "temperature": temperature,
             "messages": [{"role": "user", "content": user_content}],
         }
+        if "temperature" not in locked:
+            kwargs["temperature"] = temperature
         if system_message:
             kwargs["system"] = system_message
         if stop_sequences:

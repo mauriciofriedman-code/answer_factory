@@ -9,6 +9,7 @@ import CompareMode from './components/CompareMode.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import TokenVisualizer from './components/TokenVisualizer.jsx';
 import PresetBar from './components/PresetBar.jsx';
+import { LOCKED_NOTE } from './components/Slider.jsx';
 import { api } from './api.js';
 import { saveEntry } from './history.js';
 
@@ -58,6 +59,8 @@ export default function App() {
       .catch(() => {});
     refreshRag();
   }, []);
+
+  const locked = models.find((m) => m.id === model)?.locked || [];
 
   const refreshRag = () => {
     api
@@ -213,7 +216,12 @@ export default function App() {
                   className="upload-input"
                   value={stopSequences}
                   onChange={(e) => setStopSequences(e.target.value)}
-                  placeholder="ej: FIN, ###, ALTO"
+                  placeholder={
+                    locked.includes('stop_sequences')
+                      ? LOCKED_NOTE
+                      : 'ej: FIN, ###, ALTO'
+                  }
+                  disabled={locked.includes('stop_sequences')}
                 />
 
                 <div className="toggle-row">
@@ -231,18 +239,21 @@ export default function App() {
                 </div>
 
                 <div className="toggle-row">
-                  <label title="Solo OpenAI. Devuelve las palabras alternativas que el modelo consideró.">
+                  <label title="Solo algunos modelos de OpenAI. Devuelve las palabras alternativas que el modelo consideró.">
                     Mostrar logprobs (alternativas que la IA consideró)
                   </label>
                   <button
-                    className={`toggle ${returnLogprobs ? 'on' : ''}`}
+                    className={`toggle ${returnLogprobs && !locked.includes('logprobs') ? 'on' : ''}`}
                     onClick={() => setReturnLogprobs((v) => !v)}
-                    aria-pressed={returnLogprobs}
+                    aria-pressed={returnLogprobs && !locked.includes('logprobs')}
+                    disabled={locked.includes('logprobs')}
                   >
                     <span />
                   </button>
                   <span className="toggle-state">
-                    {returnLogprobs ? 'Activado' : 'Desactivado'}
+                    {locked.includes('logprobs')
+                      ? LOCKED_NOTE
+                      : returnLogprobs ? 'Activado' : 'Desactivado'}
                   </span>
                 </div>
 
@@ -257,6 +268,7 @@ export default function App() {
 
               <ParametersCard
                 params={params}
+                locked={locked}
                 onChange={(p) => {
                   setParams(p);
                   setActivePresetId(null);

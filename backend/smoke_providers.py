@@ -20,9 +20,9 @@ PROMPT = (
 )
 
 CASES = [
-    ("OpenAI · gpt-4o",          "gpt-4o",            "scientific"),
+    ("OpenAI · gpt-5.5",         "gpt-5.5",           "scientific"),
     ("Anthropic · sonnet-4-6",   "claude-sonnet-4-6", "friendly_teacher"),
-    ("Google · gemini-2.5-pro",  "gemini-2.5-pro",    "natural"),
+    ("Google · gemini-3.1-pro",  "gemini-3.1-pro-preview", "natural"),
 ]
 
 MARKDOWN_RX = re.compile(r"(\*\*|^#{1,6}\s|^\s*[-*]\s|^\s*\d+\.\s)", re.MULTILINE)

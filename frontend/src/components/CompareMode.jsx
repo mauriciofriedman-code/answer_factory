@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api.js';
 import { saveEntry } from '../history.js';
+import { LOCKED_NOTE } from './Slider.jsx';
 
 const PRESETS = [
   { label: 'Conservador', temperature: 0.2, top_p: 0.9, frequency_penalty: 0, presence_penalty: 0, max_tokens: 1800, style: 'natural' },
@@ -147,6 +148,7 @@ export default function CompareMode({ models, defaultModel, onHistoryChange }) {
 }
 
 function VariantCard({ index, variant, models, result, loading, canRemove, onChange, onRemove }) {
+  const locked = models.find((m) => m.id === variant.model)?.locked || [];
   return (
     <div className="card variant-card">
       <div className="card-header-row">
@@ -195,6 +197,7 @@ function VariantCard({ index, variant, models, result, loading, canRemove, onCha
         step={0.1}
         value={variant.temperature}
         onChange={(v) => onChange({ temperature: v })}
+        locked={locked.includes('temperature')}
         format={(v) => v.toFixed(1)}
       />
       <MiniSlider
@@ -204,6 +207,7 @@ function VariantCard({ index, variant, models, result, loading, canRemove, onCha
         step={0.01}
         value={variant.top_p}
         onChange={(v) => onChange({ top_p: v })}
+        locked={locked.includes('top_p')}
         format={(v) => v.toFixed(2)}
       />
       <MiniSlider
@@ -213,6 +217,7 @@ function VariantCard({ index, variant, models, result, loading, canRemove, onCha
         step={0.1}
         value={variant.frequency_penalty}
         onChange={(v) => onChange({ frequency_penalty: v })}
+        locked={locked.includes('frequency_penalty')}
         format={(v) => v.toFixed(1)}
       />
       <MiniSlider
@@ -222,6 +227,7 @@ function VariantCard({ index, variant, models, result, loading, canRemove, onCha
         step={0.1}
         value={variant.presence_penalty}
         onChange={(v) => onChange({ presence_penalty: v })}
+        locked={locked.includes('presence_penalty')}
         format={(v) => v.toFixed(1)}
       />
       <MiniSlider
@@ -257,13 +263,13 @@ function VariantCard({ index, variant, models, result, loading, canRemove, onCha
   );
 }
 
-function MiniSlider({ label, min, max, step, value, onChange, format }) {
+function MiniSlider({ label, min, max, step, value, onChange, format, locked }) {
   const display = format ? format(value) : value;
   return (
-    <div className="mini-slider">
+    <div className={`mini-slider ${locked ? 'locked' : ''}`} title={locked ? LOCKED_NOTE : undefined}>
       <div className="mini-slider-label">
         <span>{label}</span>
-        <span className="slider-value">{display}</span>
+        <span className="slider-value">{locked ? 'bloqueada' : display}</span>
       </div>
       <input
         type="range"
@@ -272,6 +278,7 @@ function MiniSlider({ label, min, max, step, value, onChange, format }) {
         max={max}
         step={step}
         value={value}
+        disabled={locked}
         onChange={(e) => onChange(parseFloat(e.target.value))}
       />
     </div>

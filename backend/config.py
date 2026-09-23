@@ -19,14 +19,28 @@ CHROMA_DB_PATH.mkdir(parents=True, exist_ok=True)
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
+
+# Perillas que cada modelo NO acepta: el backend no las manda y la interfaz las
+# muestra bloqueadas. Medido contra las APIs el 2026-09-23 — los modelos de punta
+# (GPT-5.5, Claude Sonnet 5 / Opus 5) responden 400 si reciben temperature.
+# Los nombres son los campos de GenerateRequest; "logprobs" = return_logprobs.
+_OPENAI_FRONTIER_LOCKED = [
+    "temperature", "top_p", "frequency_penalty", "presence_penalty", "stop_sequences", "logprobs",
+]
+_CLAUDE_LOCKED = ["top_p", "frequency_penalty", "presence_penalty", "logprobs"]
+_CLAUDE_FRONTIER_LOCKED = ["temperature"] + _CLAUDE_LOCKED
+_GEMINI_LOCKED = ["frequency_penalty", "presence_penalty", "logprobs"]
+
 SUPPORTED_MODELS = {
-    "gpt-4o-mini":         {"provider": "openai",    "label": "GPT-4o mini (rápido)"},
-    "gpt-4o":              {"provider": "openai",    "label": "GPT-4o (más capaz)"},
-    "claude-haiku-4-5":    {"provider": "anthropic", "label": "Claude Haiku 4.5 (rápido)"},
-    "claude-sonnet-4-6":   {"provider": "anthropic", "label": "Claude Sonnet 4.6 (recomendado)"},
-    "claude-opus-4-7":     {"provider": "anthropic", "label": "Claude Opus 4.7 (más capaz)"},
-    "gemini-2.5-pro":      {"provider": "google",    "label": "Gemini 2.5 Pro"},
-    "gemini-2.5-flash":    {"provider": "google",    "label": "Gemini 2.5 Flash (rápido)"},
+    "gpt-5.4-mini":           {"provider": "openai",    "label": "GPT-5.4 mini (rápido)",            "locked": ["stop_sequences"]},
+    "gpt-4.1":                {"provider": "openai",    "label": "GPT-4.1 (todas las perillas)",     "locked": []},
+    "gpt-5.5":                {"provider": "openai",    "label": "GPT-5.5 (punta, sin perillas)",    "locked": _OPENAI_FRONTIER_LOCKED},
+    "claude-haiku-4-5":       {"provider": "anthropic", "label": "Claude Haiku 4.5 (rápido)",        "locked": _CLAUDE_LOCKED},
+    "claude-sonnet-4-6":      {"provider": "anthropic", "label": "Claude Sonnet 4.6 (recomendado)",  "locked": _CLAUDE_LOCKED},
+    "claude-sonnet-5":        {"provider": "anthropic", "label": "Claude Sonnet 5 (punta)",          "locked": _CLAUDE_FRONTIER_LOCKED},
+    "claude-opus-5":          {"provider": "anthropic", "label": "Claude Opus 5 (punta, más capaz)", "locked": _CLAUDE_FRONTIER_LOCKED},
+    "gemini-3.8-flash":       {"provider": "google",    "label": "Gemini 3.8 Flash (rápido)",        "locked": _GEMINI_LOCKED},
+    "gemini-3.1-pro-preview": {"provider": "google",    "label": "Gemini 3.1 Pro (preview)",         "locked": _GEMINI_LOCKED},
 }
 
 # Sistema base — se inyecta SIEMPRE, sumado al estilo elegido

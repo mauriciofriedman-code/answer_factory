@@ -122,7 +122,7 @@ def health():
 def get_public_config():
     return {
         "models": [
-            {"id": k, "label": v["label"], "provider": v["provider"]}
+            {"id": k, "label": v["label"], "provider": v["provider"], "locked": v["locked"]}
             for k, v in SUPPORTED_MODELS.items()
         ],
         "default_model": DEFAULT_MODEL,

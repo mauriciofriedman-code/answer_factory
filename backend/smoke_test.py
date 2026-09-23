@@ -84,7 +84,7 @@ def test_generate_basic() -> None:
 
     vague = {
         "prompt": "Hazme una rúbrica.",
-        "model": "gpt-4o-mini",
+        "model": "gpt-4.1",
         "style": "natural",
         "temperature": 0.5,
         "top_p": 0.9,
@@ -125,7 +125,7 @@ def test_compare() -> None:
         "variants": [
             {
                 "label": "Conservador",
-                "model": "gpt-4o-mini",
+                "model": "gpt-4.1",
                 "style": "natural",
                 "temperature": 0.2,
                 "top_p": 0.9,
@@ -136,7 +136,7 @@ def test_compare() -> None:
             },
             {
                 "label": "Balanceado",
-                "model": "gpt-4o-mini",
+                "model": "gpt-4.1",
                 "style": "friendly_teacher",
                 "temperature": 0.5,
                 "top_p": 0.9,
@@ -147,7 +147,7 @@ def test_compare() -> None:
             },
             {
                 "label": "Creativo",
-                "model": "gpt-4o-mini",
+                "model": "gpt-4.1",
                 "style": "natural",
                 "temperature": 0.9,
                 "top_p": 1.0,
@@ -198,7 +198,7 @@ def test_rag_text_then_query() -> None:
 
     rag_payload = {
         "prompt": "¿Cuáles son las tres condiciones de la Doctrina Friedman-Hermes y quién la propuso?",
-        "model": "gpt-4o-mini",
+        "model": "gpt-4.1",
         "style": "scientific",
         "temperature": 0.2,
         "top_p": 0.9,
@@ -230,7 +230,7 @@ def test_rag_url() -> None:
         "/api/generate",
         json={
             "prompt": "Según la fuente subida, ¿qué autor es central en el aprendizaje por descubrimiento y cuáles son sus ideas principales?",
-            "model": "gpt-4o-mini",
+            "model": "gpt-4.1",
             "style": "friendly_teacher",
             "temperature": 0.3,
             "top_p": 0.9,
@@ -258,7 +258,7 @@ def test_logprobs() -> None:
     banner("7 · /api/generate con return_logprobs (solo OpenAI)")
     payload = {
         "prompt": "Di literalmente: 'la fotosíntesis convierte luz en energía'.",
-        "model": "gpt-4o-mini",
+        "model": "gpt-4.1",
         "style": "natural",
         "temperature": 0.2,
         "top_p": 0.9,
